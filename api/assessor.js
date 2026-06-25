@@ -72,7 +72,9 @@ Regras:
     messages: [{ role: "user", content: userMessage }],
   });
 
-  const text = response.content[0].text.trim();
+  let text = response.content[0].text.trim();
+  // Remove markdown code blocks se presentes
+  text = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
   return JSON.parse(text);
 }
 
