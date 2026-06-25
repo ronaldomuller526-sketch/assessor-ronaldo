@@ -1,0 +1,14 @@
+{
+  "version": 2,
+  "functions": {
+    "api/assessor.js": {
+      "maxDuration": 30
+    }
+  },
+  "routes": [
+    {
+      "src": "/api/assessor",
+      "dest": "/api/assessor.js"
+    }
+  ]
+}
