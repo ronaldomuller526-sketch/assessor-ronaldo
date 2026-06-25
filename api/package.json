@@ -1,0 +1,14 @@
+{
+  "name": "assessor-ronaldo",
+  "version": "1.0.0",
+  "description": "Assessor pessoal executivo do Ronaldo Müller",
+  "private": true,
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.20.0",
+    "@notionhq/client": "^2.2.14",
+    "googleapis": "^140.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
