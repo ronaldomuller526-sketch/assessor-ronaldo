@@ -53,7 +53,7 @@ Se for uma solicitação de agendamento, retorne:
   "horario_inicio": "HH:MM",
   "horario_fim": "HH:MM",
   "duracao_minutos": 60,
-  "tipo": "reunião|pessoal|loja|financeiro|marketplace|outro",
+  "tipo": "Reunião|Pessoal|Financeiro|Bloqueio|MBR",
   "descricao": "detalhes adicionais se houver",
   "confirmacao": "mensagem curta confirmando o agendamento para o Ronaldo"
 }
@@ -67,13 +67,13 @@ Se NÃO for agendamento, retorne:
 Regras:
 - Se hora não mencionada, use 09:00 como padrão
 - Se duração não mencionada, use 60 minutos
-- Interprete datas relativas: "amanhã", "sexta", "semana que vem", etc.
+- Interprete datas relativas: amanhã, sexta, semana que vem, etc.
+- O campo tipo deve ser exatamente um de: Reunião, Pessoal, Financeiro, Bloqueio, MBR
 - Seja objetivo e direto, como um assessor executivo`,
     messages: [{ role: "user", content: userMessage }],
   });
 
   let text = response.content[0].text.trim();
-  // Remove markdown code blocks se presentes
   text = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
   return JSON.parse(text);
 }
@@ -93,18 +93,10 @@ async function criarNoNotion(evento) {
         date: { start: dataHoraInicio, end: dataHoraFim },
       },
       Horário: {
-        rich_text: [
-          {
-            text: {
-              content: `${evento.horario_inicio} - ${evento.horario_fim}`,
-            },
-          },
-        ],
+        rich_text: [{ text: { content: `${evento.horario_inicio} - ${evento.horario_fim}` } }],
       },
       Duração: {
-        rich_text: [
-          { text: { content: `${evento.duracao_minutos} minutos` } },
-        ],
+        rich_text: [{ text: { content: `${evento.duracao_minutos} minutos` } }],
       },
       Tipo: {
         select: { name: evento.tipo },
@@ -121,7 +113,6 @@ async function criarNoNotion(evento) {
 
 async function criarNoGoogleCalendar(evento) {
   const calendar = await getCalendarClient();
-
   const dataHoraInicio = `${evento.data}T${evento.horario_inicio}:00`;
   const dataHoraFim = `${evento.data}T${evento.horario_fim}:00`;
 
@@ -145,15 +136,14 @@ async function criarNoGoogleCalendar(evento) {
 
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
   if (req.method === "OPTIONS") return res.status(200).end();
-  if (req.method !== "POST")
-    return res.status(405).json({ erro: "Método não permitido" });
 
   try {
-    const { mensagem } = req.body;
+    // Aceita mensagem via GET (?mensagem=...) ou POST body JSON
+    const mensagem = req.query?.mensagem || req.body?.mensagem;
 
     if (!mensagem) {
       return res.status(400).json({ erro: "Campo 'mensagem' é obrigatório" });
@@ -162,18 +152,14 @@ export default async function handler(req, res) {
     const resultado = await extractEventFromClaude(mensagem);
 
     if (resultado.acao === "agendar") {
-      // Calcula horário fim se não veio
       if (!resultado.horario_fim) {
         const [h, m] = resultado.horario_inicio.split(":").map(Number);
         const totalMin = h * 60 + m + (resultado.duracao_minutos || 60);
-        const hFim = Math.floor(totalMin / 60)
-          .toString()
-          .padStart(2, "0");
+        const hFim = Math.floor(totalMin / 60).toString().padStart(2, "0");
         const mFim = (totalMin % 60).toString().padStart(2, "0");
         resultado.horario_fim = `${hFim}:${mFim}`;
       }
 
-      // Salva em paralelo no Notion e Google Calendar
       await Promise.all([
         criarNoNotion(resultado),
         criarNoGoogleCalendar(resultado),
